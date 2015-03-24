@@ -1,23 +1,34 @@
-'User configurable variables
-'Server names must be seperated by a comma.  Names are case sensitive so you have to get the
-'name of your server PERFECT!
+'#################### User configurable variables #################
+
+'VM names are stored in the strServers variable and must be seperated by a comma.
+'Names are case sensitive so you have to get the name of your server PERFECT!
 strServers = "ServerName,ServerName2"
+
+'### Server and logon details ###
+'XenServer root user
 strUser = "root"
+'Password of the root user
 strpw = "mypassword"
-strXenServer = "XenServer IP Address or hostname"
+'XenServer IP address or hostname
+strXenServer = "X.X.X.X"
+'Backup path location. This script supports network shares
 strBackupPath = "d:\xsbackups"
-'Make sure to use the short file name format
+'Path of XenCenter installation. Make sure to use the short file name format
 strXenCenterPath = "C:\Progra~1\Citrix\XenCenter\"
+
+'### Email Options ###
 'Set to TRUE if you want to send a status email
 binSendEmail = TRUE
 strSMTPFrom = "XSLiveBackup@mycompany.com"
 strSMTPTo = "spiceworkshelpdesk@mycompany.com"
 strSMTPRelay = "smtp relay IP address or host name"
-'Number of days to keep the logs and backup files
+
+'### Backup Days ###
+'Number of days to keep the logs and backup files. Anything older will be permanently deleted
 numKeepLogs = 10
 numKeepBackups = 5
 
-
+'#################### END User configurable variables #################
 
 '************************************************************************************************
 'Do not edit beyond this point
@@ -99,7 +110,7 @@ Sub backupVM(strServer)
 	Set oAllFiles = oFolder.Files
 	numDM = 0
 	For Each oFile in oAllFiles
-		If Left(oFile.Name, 7) = "Backup-" and DateDiff("d", NOW, oFile.DateLastModified) > numKeepBackups Then
+		If Abs(Left(oFile.Name, 7) = "Backup-" and DateDiff("d", NOW, oFile.DateLastModified)) > numKeepBackups Then
 			numDM = numDM + 1
 			ReDim Preserve arrFileName(numDM)
 			arrFileName(numDM) = oFile.Name
@@ -204,7 +215,7 @@ Sub logSetup
 	Set oFolder = fs.GetFolder(strBackupPath)
 	Set oAllFiles = oFolder.Files
 	For Each oFile in oAllFiles
-		If Left(oFile.Name, 16) = "XenServerBackups" and DateDiff("d", NOW, oFile.DateLastModified) > numKeepLogs Then
+		If Abs(Left(oFile.Name, 16) = "XenServerBackups" and DateDiff("d", NOW, oFile.DateLastModified)) > numKeepLogs Then
 			fs.DeleteFile oFile.Path
 		End If
 	Next
@@ -264,7 +275,7 @@ Sub sendMsg
 	strText = strText & "Xen Server                 : " & strXenServer & vbCRLF
 	strText = strText & "Backup Destination         : " & strBackupPath & vbCRLF
 	strText = strText & vbCRLF
-		strText = strText & "Backup Status              : " & strStatus
+	strText = strText & "Backup Status              : " & strStatus
 	oMessage.TextBody = strText
 	oMessage.AddAttachment strBackupPath & "\" & strLogName
 	oMessage.Send
