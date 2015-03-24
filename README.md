@@ -1,4 +1,4 @@
-# XenServer_Backup
+# XenServerBackup
 Script to backup XenServer Virtual Machines
 
 This is a Visual Basic Script to perform live backups from XenServer hosts.
