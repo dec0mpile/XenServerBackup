@@ -59,7 +59,7 @@ Call logClose
 Call sendMsg
 
 'Script completed -- REM line below out if you want to run this in a scheduled task
-wscript.echo "Done!"
+'wscript.echo "Done!"
 
 
 
