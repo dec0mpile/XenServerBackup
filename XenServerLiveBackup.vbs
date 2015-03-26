@@ -1,40 +1,62 @@
-'#################### User configurable variables #################
+'############################### User configurable variables ####################################
 
-'VM names are stored in the strServers variable and must be seperated by a comma.
+'VM names are stored in the strServers variable and must be separated by a comma.
 'Names are case sensitive so you have to get the name of your server PERFECT!
-strServers = "ServerName,ServerName2"
+	strServers = "ServerName,ServerName2"
 
-'### Server and logon details ###
-'XenServer root user
-strUser = "root"
-'Password of the root user
-strpw = "mypassword"
-'XenServer IP address or hostname
-strXenServer = "X.X.X.X"
-'Backup path location. This script supports network shares
-strBackupPath = "d:\xsbackups"
-'Path of XenCenter installation. Make sure to use the short file name format
-strXenCenterPath = "C:\Progra~1\Citrix\XenCenter\"
+'### XenServer and log-on details ###
+	'XenServer root user
+	strUser = "root"
+
+	'Password of the root user
+	strpw = "mypassword"
+
+	'XenServer IP address or hostname
+	strXenServer = "X.X.X.X"
+
+	'Backup path location. This script supports network shares
+	strBackupPath = "d:\xsbackups"
+
+	'Path of XenCenter installation. Make sure to use the short file name format
+	strXenCenterPath = "C:\Progra~1\Citrix\XenCenter\"
+
+	'Compress image .xva file?
+	'++++++++++++++++++++++++++++++WARNING:+++++++++++++++++++++++++++++++++++++++++++++
+	'Image file compression is performed on the XenServer host.
+	'This means that the XenServer host will have increased CPU usage during backup.
+	'Test this very carefully to ensure CPU usage does not affect guest machines.
+	'+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	'Set to TRUE if you want the images to be compressed.
+	bolCompressImage = FALSE
 
 '### Email Options ###
-'Set to TRUE if you want to send a status email
-binSendEmail = TRUE
-strSMTPFrom = "XSLiveBackup@mycompany.com"
-strSMTPTo = "spiceworkshelpdesk@mycompany.com"
-strSMTPRelay = "smtp relay IP address or host name"
+	'Set to TRUE if you want to send a status email
+	bolSendEmail = FALSE
+	'The log is saved in the backup directory. Set this to TRUE if you want 
+	'the email to include the log file as an attachment.
+	bolIncludeAttachment = FALSE
+	'This is the "From" email address that will be used. Eg: "XSLiveBackup@mycompany.com"
+	strSMTPFrom = ""
+	'This is the "To" email address that will be used. Eg: "sysadmin@mycompany.com"
+	strSMTPTo = ""
+	'The IP or hostname of the CMTO relay server
+	strSMTPRelay = "X.X.X.X"
 
 '### Backup Days ###
-'Number of days to keep the logs and backup files. Anything older will be permanently deleted
-numKeepLogs = 10
-numKeepBackups = 5
+	'Number of days to keep the logs and backup files.
+	'Anything older will be permanently deleted
+	numKeepLogs = 10
+	numKeepBackups = 5
 
-'#################### END User configurable variables #################
+'########################### END User configurable variables ####################################
 
 '************************************************************************************************
 'Do not edit beyond this point
 '************************************************************************************************
+
 Dim errStatus, strLogName
 Dim fs, logFile
+
 If Right(strBackupPath, 1) = "\" Then
 	strBackupPath = Left(strBackupPath, Len(strBackupPath) - 1)
 End If
@@ -148,15 +170,26 @@ Sub backupVM(strServer)
 	strTime = Replace(Now(), "/", "-")
 	strTime = Replace(strTime, " ", "-")
 	strTime = Replace(strTime, ":", "-")
-	strName = "Backup-" & strServer & "-" & strTime & ".xva"
-	writeLog("Backup filename: " & strName)
-	Set objExec = WSHshell.Exec(strRunXE & "vm-export vm=" & strSSID & " filename=" & strBackupPath & "\" & strName)
 	strResult = ""
+	
+	If bolCompressImage = TRUE Then
+		strName = "Backup-" & strServer & "-" & strTime & ".xva.gz"
+		writeLog("Backup filename: " & strName)
+		
+		Set objExec = WSHshell.Exec(strRunXE & "vm-export vm=" & strSSID & " compress=true" & " filename=" & strBackupPath & "\" & strName)
+	Else
+		strName = "Backup-" & strServer & "-" & strTime & ".xva"
+		writeLog("Backup filename: " & strName)
+		
+		Set objExec = WSHshell.Exec(strRunXE & "vm-export vm=" & strSSID & " filename=" & strBackupPath & "\" & strName)
+	End if
+	
 	Do While Not objExec.StdOut.AtEndOfStream
 		strTemp = objExec.StdOut.ReadLine()
 		writeLog(strTemp)
 		strResult = strResult & ":" & strTemp
 	Loop
+	
 	If InStr(UCase(strResult), "SUCCEEDED") = 0 Then
 		strResult = SetErrorStatus("Add")
 		writeLog("**************   Error during backup of " & strServer & " **************")
@@ -165,15 +198,18 @@ Sub backupVM(strServer)
 	'Remove the snapshot
 	Set objExec = WSHshell.Exec(strRunXE & "vm-uninstall uuid=" & strSSID & " force=true")
 	strResult = ""
+	
 	Do While Not objExec.StdOut.AtEndOfStream
 		strTemp = objExec.StdOut.ReadLine()
 		writeLog(strTemp)
 		strResult = strResult & " " & strTemp
 	Loop
+	
 	If InStr(strResult, "All objects destroyed") = 0 Then
 		strResult = SetErrorStatus("Add")
 		writeLog("**************Error deleting snapshot for " & strServer & " **************")
 	End If
+	
 End Sub
 
 
@@ -255,7 +291,7 @@ End Sub
 
 Sub sendMsg
 	'Send status message via email
-	If binSendEmail = False Then
+	If bolSendEmail = FALSE Then
 		Exit Sub
 	End If
 	
@@ -277,6 +313,10 @@ Sub sendMsg
 	strText = strText & vbCRLF
 	strText = strText & "Backup Status              : " & strStatus
 	oMessage.TextBody = strText
-	oMessage.AddAttachment strBackupPath & "\" & strLogName
+	
+	If bolIncludeAttachment = TRUE Then
+		oMessage.AddAttachment strBackupPath & "\" & strLogName
+	End If
+	
 	oMessage.Send
 End Sub
