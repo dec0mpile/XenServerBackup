@@ -14,7 +14,8 @@
 	'XenServer IP address or hostname
 	strXenServer = "X.X.X.X"
 
-	'Backup path location. This script supports network shares
+'### XenServer backup settings ###
+	'Backup path location. This script supports mapped network shares
 	strBackupPath = "d:\xsbackups"
 
 	'Path of XenCenter installation. Make sure to use the short file name format
@@ -32,8 +33,8 @@
 '### Email Options ###
 	'Set to TRUE if you want to send a status email
 	bolSendEmail = FALSE
-	'The log is saved in the backup directory. Set this to TRUE if you want 
-	'the email to include the log file as an attachment.
+	'The log is always saved in the backup directory. Set this to TRUE if you want 
+	'the email to also include the log file as an attachment.
 	bolIncludeAttachment = FALSE
 	'This is the "From" email address that will be used. Eg: "XSLiveBackup@mycompany.com"
 	strSMTPFrom = ""
