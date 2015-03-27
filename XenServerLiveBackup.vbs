@@ -1,8 +1,16 @@
-'############################### User configurable variables ####################################
+'XenServerBackup script version 2.0
+'This is a Visual Basic Script to perform live backups from XenServer hosts.
+'Project page https://github.com/dec0mpile/XenServerBackup
 
-'VM names are stored in the strServers variable and must be separated by a comma.
-'Names are case sensitive so you have to get the name of your server PERFECT!
-	strServers = "ServerName,ServerName2"
+'Use of this software is "as-is". I take no responsibility for the results of making
+'use of this or related programs and any data directly or indirectly affected.
+'Please test it in your environment before using it on production servers.
+
+'This script is licensed under the GPL v3 license.
+'A copy of the license is found on the project page and
+'https://www.gnu.org/licenses/gpl-3.0.html
+
+'############################### User configurable variables ####################################
 
 '### XenServer and log-on details ###
 	'XenServer root user
@@ -21,10 +29,16 @@
 	'++++++++++++++++++++++++++++++WARNING:+++++++++++++++++++++++++++++++++++++++++++++
 	'Image file compression is performed on the XenServer host.
 	'This means that the XenServer host will have increased CPU usage during backup.
+	'The backup times with compression are significantly longer.
 	'Test this very carefully to ensure CPU usage does not affect guest machines.
 	'+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	'Set to TRUE if you want the images to be compressed.
 	bolCompressImage = FALSE
+
+'### XenServer VM settings ###
+	'VM names are stored in the strServers variable and must be separated by a comma.
+	'Names are case sensitive so you have to get the name of your server PERFECT!
+	strServers = "ServerName,ServerName2"
 
 '### Email Options ###
 	'Set to TRUE if you want to send a status email
