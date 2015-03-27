@@ -7,20 +7,16 @@
 '### XenServer and log-on details ###
 	'XenServer root user
 	strUser = "root"
-
 	'Password of the root user
 	strpw = "mypassword"
-
 	'XenServer IP address or hostname
 	strXenServer = "X.X.X.X"
 
 '### XenServer backup settings ###
 	'Backup path location. This script supports mapped network shares
 	strBackupPath = "d:\xsbackups"
-
 	'Path of XenCenter installation. Make sure to use the short file name format
 	strXenCenterPath = "C:\Progra~1\Citrix\XenCenter\"
-
 	'Compress image .xva file?
 	'++++++++++++++++++++++++++++++WARNING:+++++++++++++++++++++++++++++++++++++++++++++
 	'Image file compression is performed on the XenServer host.
