@@ -58,6 +58,10 @@
 	'Anything older will be permanently deleted
 	numKeepLogs = 10
 	numKeepBackups = 5
+	
+'### Show Pop-Up message on script completion ###
+	'This flag should be set to FALSE if you want to run this script as a scheduled task
+	bolShowCompletionMsg = FALSE
 
 '########################### END User configurable variables ####################################
 
@@ -102,9 +106,9 @@ Call logClose
 'Send status message via email
 Call sendMsg
 
-'Script completed -- REM line below out if you want to run this in a scheduled task
-'wscript.echo "Done!"
-
+If bolShowCompletionMsg = TRUE Then
+	WScript.Echo "XenServerBackup script execution is complete!"
+End If
 
 
 Sub backupVM(strServer)
