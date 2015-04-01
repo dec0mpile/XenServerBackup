@@ -112,6 +112,10 @@ End If
 
 
 Sub backupVM(strServer)
+	'Fix the VM name to allow for possibility of spaces
+	strQuote = """"
+	strServer = strQuote & strServer & strQuote
+
 	'First, check that the VM exists, and get UUID and name-label information.  It is possible to 
 	'name a snapshot as a backup source, but this script does not allow it, so checking for that too
 	Set objExec = WSHshell.Exec(strRunXE & "vm-list params=uuid,name-label,is-a-snapshot name-label=" & strServer)
