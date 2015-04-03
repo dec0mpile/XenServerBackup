@@ -50,7 +50,7 @@
 	strSMTPFrom = ""
 	'This is the "To" email address that will be used. Eg: "sysadmin@mycompany.com"
 	strSMTPTo = ""
-	'The IP or hostname of the CMTO relay server
+	'The IP or hostname of the SMTP relay server
 	strSMTPRelay = "X.X.X.X"
 
 '### Backup Days ###
