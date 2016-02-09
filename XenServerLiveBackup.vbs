@@ -27,9 +27,9 @@
 
 '### XenServer backup settings ###
 	'Backup path location. This script supports mapped network shares
-	strBackupPath = "d:\xsbackups"
-	'Path of XenCenter installation. Make sure to use the short file name format
-	strXenCenterPath = "C:\Progra~1\Citrix\XenCenter\"
+	strBackupPath = "D:\XSBackups"
+	'Path of XenCenter installation. Make sure to use the short path format
+	strXenCenterPath = "C:\PROGRA~2\Citrix\XenCenter\"
 	'Compress image .xva file?
 	'++++++++++++++++++++++++++++++WARNING:+++++++++++++++++++++++++++++++++++++++++++++
 	'Image file compression is performed on the XenServer host.
@@ -55,16 +55,15 @@
 	'the email to also include the log file as an attachment.
 	bolIncludeAttachment = FALSE
 	'This is the "From" email address that will be used. Eg: "XSLiveBackup@mycompany.com"
-	strSMTPFrom = ""
+	strSMTPFrom = "Your_XenServer_Backup@example.com"
 	'This is the "To" email address that will be used. Eg: "sysadmin@mycompany.com"
-	strSMTPTo = ""
+	strSMTPTo = "sysadmin@example.com"
 	'The IP or hostname of the SMTP relay server
 	strSMTPRelay = "X.X.X.X"
 
 '### Backup Days ###
 	'Number of days to keep the logs and backup files.
 	'Anything older will be permanently deleted
-	numKeepLogs = 10
 	numKeepBackups = 5
 
 '### Show Pop-Up message on script completion ###
@@ -79,6 +78,8 @@
 
 Dim errStatus, strLogName
 Dim fs, logFile
+
+Set fs = CreateObject("Scripting.FileSystemObject")
 
 If Right(strBackupPath, 1) = "\" Then
 	strBackupPath = Left(strBackupPath, Len(strBackupPath) - 1)
@@ -109,6 +110,8 @@ Else
 	errStatus = UBound(arrBackups) + 2
 End If
 
+'Cleans up the old backups and log files.
+Call DelFiles(strBackupPath,strIndentify,numKeepBackups)
 'Finish up the log file
 Call logClose
 'Send status message via email
@@ -120,6 +123,7 @@ End If
 
 
 Sub backupVM(strServer)
+
 	'Fix the VM name to allow for possibility of spaces
 	strQuote = """"
 	strServer = strQuote & strServer & strQuote
@@ -152,24 +156,6 @@ Sub backupVM(strServer)
 	Else
 		writeLog("VM Found: " & strServer)
 	End If
-
-	'Remove old backups
-	writeLog("Cleaning up old backup files")
-	Set oFolder = fs.GetFolder(strBackupPath)
-	Set oAllFiles = oFolder.Files
-	numDM = 0
-	For Each oFile in oAllFiles
-		If Abs(Left(oFile.Name, 7) = "Backup-" and DateDiff("d", NOW, oFile.DateLastModified)) > numKeepBackups Then
-			numDM = numDM + 1
-			ReDim Preserve arrFileName(numDM)
-			arrFileName(numDM) = oFile.Name
-			fs.DeleteFile oFile.Path
-		End If
-	Next
-	writeLog(numDM & " files deleted")
-	For x = 1 to numDM
-		writeLog("     " & arrFileName(x))
-	Next
 
 	'Snapshot the VM
 	writeLog("Snapshoting server: " & strServer)
@@ -244,17 +230,22 @@ End Sub
 
 
 Function stripValue(strValue)
+
 	arrStrip = Split(strValue, ":")
 	stripValue = Trim(arrStrip(1))
+	
 End Function
 
 
 Sub writeLog(strText)
+
 	logFile.WriteLine Now() & ":  " & strText
+	
 End Sub
 
 
 Function SetErrorStatus(strTask)
+
 	If strTask = "Add" Then
 		errStatus = errStatus + 1
 		SetErrorStatus = errStatus
@@ -268,24 +259,15 @@ Function SetErrorStatus(strTask)
 			SetErrorStatus = "Partial Failure"
 		End If
 	End If
+	
 End Function
 
 
 Sub logSetup
-	Set fs = CreateObject("Scripting.FileSystemObject")
 
 	If Not fs.FolderExists(strBackupPath) Then
 		fs.CreateFolder(strBackupPath)
 	End If
-
-	Set oFolder = fs.GetFolder(strBackupPath)
-	Set oAllFiles = oFolder.Files
-	
-	For Each oFile in oAllFiles
-		If Abs(Left(oFile.Name, 16) = "XenServerBackups" and DateDiff("d", NOW, oFile.DateLastModified)) > numKeepLogs Then
-			fs.DeleteFile oFile.Path
-		End If
-	Next
 
 	strLogName = "XenServerBackups-" & Replace(Date, "/", "-") & "-" & strIndentify & ".log"
 	Set logFile = fs.OpenTextFile (strBackupPath & "\" & strLogName, ForAppending, True)
@@ -307,11 +289,13 @@ Sub logSetup
 	logFile.WriteLine "Xen Server                 : " & strXenServer
 	logFile.WriteLine "Backup Destination         : " & strBackupPath
 	logFile.WriteLine
+	
 End Sub
 
 
+'Finish the log file.
 Sub logClose
-	'Finish up the log file
+	
 	logFile.WriteLine
 	strStatus = SetErrorStatus("Read")
 	logFile.WriteLine "Backup completed on " & Now()
@@ -319,10 +303,40 @@ Sub logClose
 	logFile.WriteLine
 	logFile.WriteLine
 	logFile.Close
+	
+End Sub
+
+
+'Cleans up the old backups and log files.
+Sub DelFiles (ByVal strDelPath, ByVal strIdentifier, ByVal intNumDaysToKeep)
+
+	Set oFolder = fs.GetFolder(strDelPath)
+	Set oAllFiles = oFolder.Files
+	
+	numDM = 0
+	
+	writeLog("Cleaning up old backup files")
+	
+	For Each oFile in oAllFiles
+		If Abs(InStr(oFile.Name, strIdentifier) <> 0 and DateDiff("d", NOW, oFile.DateLastModified)) > intNumDaysToKeep Then
+			numDM = numDM + 1
+			ReDim Preserve arrFileName(numDM)
+			
+			arrFileName(numDM) = oFile.Name
+			
+			writeLog("Deleting file: " & oFile.Path)	
+			fs.DeleteFile oFile.Path
+			
+		End If
+	Next
+	
+	writeLog(numDM & " files deleted")
+	
 End Sub
 
 
 Sub sendMsg
+
 	'Send status message via email
 	If bolSendEmail = FALSE Then
 		Exit Sub
@@ -352,4 +366,5 @@ Sub sendMsg
 	End If
 
 	oMessage.Send
+	
 End Sub
