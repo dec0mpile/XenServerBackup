@@ -12,6 +12,11 @@
 
 '############################### User configurable variables ####################################
 
+'### XenServer VM settings ###
+	'VM names are stored in the strServers variable and must be separated by a comma.
+	'Names are case sensitive so you have to get the name of your server PERFECT!
+	strServers = "ServerName,ServerName2,ServerName3"
+
 '### XenServer and log-on details ###
 	'XenServer root user
 	strUser = "root"
@@ -34,16 +39,19 @@
 	'+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 	'Set to TRUE if you want the images to be compressed.
 	bolCompressImage = FALSE
-
-'### XenServer VM settings ###
-	'VM names are stored in the strServers variable and must be separated by a comma.
-	'Names are case sensitive so you have to get the name of your server PERFECT!
-	strServers = "ServerName,ServerName2"
+	'Server identification string. This is added to the file name, and it is used to
+	'identify the server that is being backed up. This setting is useful if you have
+	'multiple host backups going to the same backup location.
+	'++++++++++++++++++++++++++++++++++++ NOTE +++++++++++++++++++++++++++++++++++++++++
+	'This string is also used to identify which files to delete in the backup cleanup
+	'function. So make sure that it is a meaningful name.
+	'+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	strIndentify = "ProductionXen1"
 
 '### Email Options ###
 	'Set to TRUE if you want to send a status email
 	bolSendEmail = FALSE
-	'The log is always saved in the backup directory. Set this to TRUE if you want 
+	'The log is always saved in the backup directory. Set this to TRUE if you want
 	'the email to also include the log file as an attachment.
 	bolIncludeAttachment = FALSE
 	'This is the "From" email address that will be used. Eg: "XSLiveBackup@mycompany.com"
@@ -58,7 +66,7 @@
 	'Anything older will be permanently deleted
 	numKeepLogs = 10
 	numKeepBackups = 5
-	
+
 '### Show Pop-Up message on script completion ###
 	'This flag should be set to FALSE if you want to run this script as a scheduled task
 	bolShowCompletionMsg = FALSE
@@ -116,7 +124,7 @@ Sub backupVM(strServer)
 	strQuote = """"
 	strServer = strQuote & strServer & strQuote
 
-	'First, check that the VM exists, and get UUID and name-label information.  It is possible to 
+	'First, check that the VM exists, and get UUID and name-label information.  It is possible to
 	'name a snapshot as a backup source, but this script does not allow it, so checking for that too
 	Set objExec = WSHshell.Exec(strRunXE & "vm-list params=uuid,name-label,is-a-snapshot name-label=" & strServer)
 	strStatus = "Not Found"
@@ -127,12 +135,12 @@ Sub backupVM(strServer)
 		strSnapShot = stripValue(objExec.StdOut.ReadLine())
 		strTemp = objExec.StdOut.ReadLine()
 		strTemp = objExec.StdOut.ReadLine()
-	
+
 		If strSnapShot = "false" and strVM <> "Control domain on host" Then
 			strStatus = "Good"
 		End If
 	Loop
-	
+
 	If strStatus = "Not Found" Then
 		strResult = SetErrorStatus("Add")
 		writeLog("No VM by that name: " & strServer)
@@ -162,73 +170,76 @@ Sub backupVM(strServer)
 	For x = 1 to numDM
 		writeLog("     " & arrFileName(x))
 	Next
-	
+
 	'Snapshot the VM
 	writeLog("Snapshoting server: " & strServer)
 	Set objExec = WSHshell.Exec(strRunXE & "vm-snapshot new-name-label=" & strServer & "-XenServer-Live-Backup uuid=" & strUUID)
 	strSSID = objExec.StdOut.ReadLine()
 	strResult = strSSID
+
 	Do While Not objExec.StdOut.AtEndOfStream
 		strTemp = objExec.StdOut.ReadLine()
 		writeLog(strTemp)
 		strResult = strResult & ":" & strTemp
 	Loop
+
 	If InStr(UCase(strResult), "ERROR") Then
 		writeLog("Error creating snapshot, see above")
 		Exit Sub
 	End If
-	
+
 	'Set snapshot to NOT be a template
 	writeLog("Setting snapshot status...")
 	Set objExec = WSHshell.Exec(strRunXE & "template-param-set is-a-template=false uuid=" & strSSID)
+
 	Do While Not objExec.StdOut.AtEndOfStream
 		writeLog(objExec.StdOut.ReadLine())
 	Loop
-		
+
 	'Export to backup destination
 	strTime = Replace(Now(), "/", "-")
 	strTime = Replace(strTime, " ", "-")
 	strTime = Replace(strTime, ":", "-")
 	strResult = ""
-	
+
 	If bolCompressImage = TRUE Then
-		strName = "Backup-" & strServer & "-" & strTime & ".xva.gz"
+		strName = "Backup-" & strServer & "-" & strTime & "-" & strIndentify & ".xva.gz"
 		writeLog("Backup filename: " & strName)
-		
+
 		Set objExec = WSHshell.Exec(strRunXE & "vm-export vm=" & strSSID & " compress=true" & " filename=" & strBackupPath & "\" & strName)
 	Else
-		strName = "Backup-" & strServer & "-" & strTime & ".xva"
+		strName = "Backup-" & strServer & "-" & strTime & "-" & strIndentify & ".xva"
 		writeLog("Backup filename: " & strName)
-		
+
 		Set objExec = WSHshell.Exec(strRunXE & "vm-export vm=" & strSSID & " filename=" & strBackupPath & "\" & strName)
 	End if
-	
+
 	Do While Not objExec.StdOut.AtEndOfStream
 		strTemp = objExec.StdOut.ReadLine()
 		writeLog(strTemp)
 		strResult = strResult & ":" & strTemp
 	Loop
-	
+
 	If InStr(UCase(strResult), "SUCCEEDED") = 0 Then
 		strResult = SetErrorStatus("Add")
 		writeLog("**************   Error during backup of " & strServer & " **************")
 	End If
-	
+
 	'Remove the snapshot
 	Set objExec = WSHshell.Exec(strRunXE & "vm-uninstall uuid=" & strSSID & " force=true")
 	strResult = ""
-	
+
 	Do While Not objExec.StdOut.AtEndOfStream
 		strTemp = objExec.StdOut.ReadLine()
 		writeLog(strTemp)
 		strResult = strResult & " " & strTemp
 	Loop
-	
+
 	If InStr(strResult, "All objects destroyed") = 0 Then
 		strResult = SetErrorStatus("Add")
 		writeLog("**************Error deleting snapshot for " & strServer & " **************")
 	End If
-	
+
 End Sub
 
 
@@ -266,21 +277,23 @@ Sub logSetup
 	If Not fs.FolderExists(strBackupPath) Then
 		fs.CreateFolder(strBackupPath)
 	End If
-	
+
 	Set oFolder = fs.GetFolder(strBackupPath)
 	Set oAllFiles = oFolder.Files
+	
 	For Each oFile in oAllFiles
 		If Abs(Left(oFile.Name, 16) = "XenServerBackups" and DateDiff("d", NOW, oFile.DateLastModified)) > numKeepLogs Then
 			fs.DeleteFile oFile.Path
 		End If
 	Next
 
-	strLogName = "XenServerBackups-" & Replace(Date, "/", "-") & ".log"
-	Set logFile = fs.OpenTextFile (strBackupPath & "\" & strLogName, ForAppending, True)	
-	
+	strLogName = "XenServerBackups-" & Replace(Date, "/", "-") & "-" & strIndentify & ".log"
+	Set logFile = fs.OpenTextFile (strBackupPath & "\" & strLogName, ForAppending, True)
+
 	logFile.WriteLine "=========================================================================================================="
 	logFile.WriteLine "Backup for:  " & Now()
 	logFile.WriteLine "=========================================================================================================="
+	
 	For x = 0 to UBound(arrBackups)
 		If x = 0 Then
 			logFile.WriteLine "Servers targeted for backup: " & arrBackups(x)
@@ -288,8 +301,9 @@ Sub logSetup
 			logFile.WriteLine "                             " & arrBackups(x)
 		End If
 	Next
-	logFile.WriteLine "Backup User                : " & strUser 
-	logFile.WriteLine "Password                   : *********" 
+	
+	logFile.WriteLine "Backup User                : " & strUser
+	logFile.WriteLine "Password                   : *********"
 	logFile.WriteLine "Xen Server                 : " & strXenServer
 	logFile.WriteLine "Backup Destination         : " & strBackupPath
 	logFile.WriteLine
@@ -313,18 +327,18 @@ Sub sendMsg
 	If bolSendEmail = FALSE Then
 		Exit Sub
 	End If
-	
+
 	Set oMessage = CreateObject("CDO.Message")
-	oMessage.Configuration.Fields.Item("http://schemas.microsoft.com/cdo/configuration/sendusing") = 2 
+	oMessage.Configuration.Fields.Item("http://schemas.microsoft.com/cdo/configuration/sendusing") = 2
 	oMessage.Configuration.Fields.Item("http://schemas.microsoft.com/cdo/configuration/smtpserver") = strSMTPRelay
-	oMessage.Configuration.Fields.Item("http://schemas.microsoft.com/cdo/configuration/smtpserverport") = 25 
+	oMessage.Configuration.Fields.Item("http://schemas.microsoft.com/cdo/configuration/smtpserverport") = 25
 	oMessage.Configuration.Fields.Update
-	
+
 	strStatus = SetErrorStatus("Read")
 	oMessage.Subject = "XenServer Backup Completed. Status: " & strStatus & ".  Date: " & Now()
 	oMessage.From = strSMTPFrom
 	oMessage.To = strSMTPTo
-	strText = vbCRLF & "XenServer Backup Completed. " & vbCRLF & vbCRLF
+	strText = vbCRLF & "XenServer Backup completed for server: " & strIndentify & vbCRLF & vbCRLF
 	strText = strText & "Backup User                : " & strUser & vbCRLF
 	strText = strText & "Password                   : *********" & vbCRLF
 	strText = strText & "Xen Server                 : " & strXenServer & vbCRLF
@@ -332,10 +346,10 @@ Sub sendMsg
 	strText = strText & vbCRLF
 	strText = strText & "Backup Status              : " & strStatus
 	oMessage.TextBody = strText
-	
+
 	If bolIncludeAttachment = TRUE Then
 		oMessage.AddAttachment strBackupPath & "\" & strLogName
 	End If
-	
+
 	oMessage.Send
 End Sub
